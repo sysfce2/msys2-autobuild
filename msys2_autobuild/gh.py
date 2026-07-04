@@ -104,28 +104,29 @@ def download_text_asset(asset: GitReleaseAsset, cache=False) -> str:
         return r.text
 
 
-def get_workflow_run_id() -> int|None:
+def get_workflow_run_id() -> int:
     if "GITHUB_RUN_ID" not in os.environ:
-        return None
+        raise RuntimeError("GITHUB_RUN_ID env var not set")
     return int(os.environ["GITHUB_RUN_ID"])
 
 
-def get_job_check_run_id() -> int|None:
+def get_job_check_run_id() -> int:
     if "JOB_CHECK_RUN_ID" not in os.environ:
-        return None
+        raise RuntimeError("JOB_CHECK_RUN_ID env var not set")
     return int(os.environ["JOB_CHECK_RUN_ID"])
 
 
 def get_current_run_urls() -> dict[str, str] | None:
+    if not is_running_in_gha():
+        return None
+
     job_check_run_id = get_job_check_run_id()
-    if job_check_run_id is not None:
-        repo = get_current_repo()
-        run = repo.get_check_run(job_check_run_id)
-        html = run.html_url + "?check_suite_focus=true"
-        commit = repo.get_commit(run.head_sha)
-        raw = commit.html_url + "/checks/" + str(run.id) + "/logs"
-        return {"html": html, "raw": raw}
-    return None
+    repo = get_current_repo()
+    run = repo.get_check_run(job_check_run_id)
+    html = run.html_url + "?check_suite_focus=true"
+    commit = repo.get_commit(run.head_sha)
+    raw = commit.html_url + "/checks/" + str(run.id) + "/logs"
+    return {"html": html, "raw": raw}
 
 
 def create_dispatch(workflow: Workflow, ref: str, inputs={}) -> WorkflowRun:

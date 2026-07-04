@@ -50,9 +50,9 @@ def get_packager(build_type: BuildType) -> str:
     """Returns a string to use as the PACKAGER for makepkg, which identifies the
     CI run that built the package"""
     packager_ref = "https://github.com/" + Config.RUNNER_CONFIG[build_type]["repo"]
-    workflow_run_id = get_workflow_run_id()
-    job_check_run_id = get_job_check_run_id()
-    if workflow_run_id is not None and job_check_run_id is not None:
+    if is_running_in_gha():
+        workflow_run_id = get_workflow_run_id()
+        job_check_run_id = get_job_check_run_id()
         packager_ref += "/actions/runs/" + quote(str(workflow_run_id), safe="") + \
             "/job/" + quote(str(job_check_run_id), safe="")
     return f"CI ({packager_ref})"
