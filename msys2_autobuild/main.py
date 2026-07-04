@@ -4,8 +4,7 @@ import logging
 
 from . import (cmd_build, cmd_clean_assets, cmd_clear_failed, cmd_fetch_assets,
                cmd_show_build, cmd_update_status, cmd_upload_assets,
-               cmd_write_build_plan, cmd_show_status, cmd_supervise,
-               cmd_exec_build_plan)
+               cmd_write_build_plan, cmd_show_status, cmd_supervise)
 from .utils import install_requests_cache
 
 
@@ -29,7 +28,6 @@ def main(argv: list[str]) -> None:
     cmd_clear_failed.add_parser(subparsers)
     cmd_clean_assets.add_parser(subparsers)
     cmd_supervise.add_parser(subparsers)
-    cmd_exec_build_plan.add_parser(subparsers)
 
     args = parser.parse_args(argv[1:])
     level_map = {0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}

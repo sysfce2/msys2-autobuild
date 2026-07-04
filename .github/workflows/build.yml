@@ -91,21 +91,9 @@ jobs:
       run: |
         python -m msys2_autobuild show --optional-deps "$OPTIONAL_DEPS"
 
-    - name: Dispatch build jobs
-      if: steps.check.outputs.build-plan != '[]'
-      id: exec
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        python -m msys2_autobuild exec-build-plan --target-branch "build-branch" build_plan.json exec_result.json
-        runId="$(python -c 'import json; print(json.load(open("exec_result.json"))["run_id"])')"
-        echo "run_id=$runId" >> $GITHUB_OUTPUT
-
-    - name: Supervise build
+    - name: Dispatch and supervise build jobs
       if: steps.check.outputs.build-plan != '[]'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
-        TARGET_WORKFLOW_RUN_ID: ${{ steps.exec.outputs.run_id }}
       run: |
-        python -m msys2_autobuild supervise --workflow-run-id "$TARGET_WORKFLOW_RUN_ID"
+        python -m msys2_autobuild supervise --target-branch "build-branch" build_plan.json

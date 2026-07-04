@@ -1,19 +1,29 @@
-from typing import Any
 import fnmatch
 import time
 import traceback
+from typing import Any
 
 from github.Artifact import Artifact
 
-from .gh import get_current_repo, get_artifact_filename, get_release, \
-    download_artifact, upload_asset, make_writable, wait_for_api_limit_reset
+from .gh import create_dispatch, download_artifact, get_artifact_filename, \
+    get_current_repo, get_release, make_writable, upload_asset, \
+    wait_for_api_limit_reset
 from .queue import get_buildqueue_with_status, update_status, get_build_jobs_status
 
 
 def supervise(args: Any) -> None:
     dry_run = args.dry_run
     repo = get_current_repo()
-    workflow_run_id = args.workflow_run_id
+    branch = args.target_branch
+    build_plan_file = args.build_plan_file
+
+    with open(build_plan_file, "rb") as h:
+        build_plan = h.read().decode()
+
+    workflow = repo.get_workflow("build-jobs.yml")
+    with make_writable(workflow):
+        workflow_run = create_dispatch(workflow, branch, inputs={"build-plan": build_plan})
+    workflow_run_id = workflow_run.id
 
     def deploy_artifacts(artifacts: list[Artifact]) -> bool:
         """Upload the artifacts to the releases and delete them from the workflow run.
@@ -117,12 +127,10 @@ def supervise(args: Any) -> None:
 
 def add_parser(subparsers: Any) -> None:
     sub = subparsers.add_parser(
-        "supervise", help="Supervise build jobs", allow_abbrev=False)
+        "supervise", help="Dispatch and supervise build jobs", allow_abbrev=False)
     sub.add_argument(
-        "--workflow-run-id",
-        type=int,
-        help="Workflow run to supervise",
-        required=True)
+        "--target-branch", type=str, help="Branch to build in", required=True)
+    sub.add_argument("build_plan_file")
     sub.add_argument(
         "--dry-run", action="store_true", help="Only show what is going to be uploaded")
     sub.set_defaults(func=supervise)
