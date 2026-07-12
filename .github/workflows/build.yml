@@ -76,24 +76,10 @@ jobs:
         buildPlan="$(cat build_plan.json)"
         echo "build-plan=$buildPlan" >> $GITHUB_OUTPUT
 
-    - name: Clean up assets
-      if: steps.check.outputs.build-plan != '[]'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        python -m msys2_autobuild clean-assets
-
-    - name: Show build queue
+    - name: Dispatch and supervise build jobs
       if: steps.check.outputs.build-plan != '[]'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         OPTIONAL_DEPS: ${{ github.event.inputs.optional_deps }}
       run: |
-        python -m msys2_autobuild show --optional-deps "$OPTIONAL_DEPS"
-
-    - name: Dispatch and supervise build jobs
-      if: steps.check.outputs.build-plan != '[]'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        python -m msys2_autobuild supervise --target-branch "build-branch" build_plan.json
+        python -m msys2_autobuild supervise --optional-deps "$OPTIONAL_DEPS" --target-branch "build-branch" build_plan.json
