@@ -1,14 +1,11 @@
-import json
-import shlex
-from typing import Any
-from collections.abc import Iterator
 import itertools
+import shlex
+from collections.abc import Iterator
+from typing import Any
 
 from .config import BuildType, Config, build_type_is_src
-from .gh import get_current_repo, wait_for_api_limit_reset
-from .queue import (Package, PackageStatus, get_buildqueue_with_status,
-                    update_status)
-from .utils import apply_optional_deps
+from .gh import get_current_repo
+from .queue import Package, PackageStatus
 
 
 def generate_jobs_for(build_type: BuildType, optional_deps: str, count: int) -> Iterator[dict[str, Any]]:
@@ -53,7 +50,7 @@ def generate_src_jobs(optional_deps: str, count: int) -> Iterator[dict[str, Any]
 
 
 # from https://docs.python.org/3/library/itertools.html
-def roundrobin(*iterables):
+def roundrobin(*iterables: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
     "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
     # Recipe credited to George Sakkis
     num_active = len(iterables)
@@ -106,32 +103,3 @@ def create_build_plan(pkgs: list[Package], optional_deps: str) -> list[dict[str,
         jobs.extend(list(generate_src_jobs(optional_deps, src_count)))
 
     return jobs
-
-
-def write_build_plan(args: Any) -> None:
-    target_file = args.target_file
-    optional_deps = args.optional_deps or ""
-
-    apply_optional_deps(optional_deps)
-
-    def write_out(result: list[dict[str, Any]]) -> None:
-        with open(target_file, "wb") as h:
-            h.write(json.dumps(result).encode())
-
-    wait_for_api_limit_reset()
-
-    pkgs = get_buildqueue_with_status(full_details=True)
-
-    update_status(pkgs)
-
-    jobs = create_build_plan(pkgs, optional_deps)
-
-    write_out(jobs)
-
-
-def add_parser(subparsers: Any) -> None:
-    sub = subparsers.add_parser(
-        "write-build-plan", help="Write a GHA build matrix setup", allow_abbrev=False)
-    sub.add_argument("--optional-deps", action="store")
-    sub.add_argument("target_file")
-    sub.set_defaults(func=write_build_plan)

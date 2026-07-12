@@ -1,3 +1,4 @@
+import json
 import fnmatch
 import time
 import traceback
@@ -6,6 +7,7 @@ from typing import Any
 from github.Artifact import Artifact
 
 from .asset_cleanup import clean_assets
+from .build_plan import create_build_plan
 from .buildqueue_report import show_buildqueue
 from .gh import create_dispatch, download_artifact, get_artifact_filename, \
     get_current_repo, get_release, make_writable, upload_asset, \
@@ -18,20 +20,25 @@ def supervise(args: Any) -> None:
     dry_run = args.dry_run
     repo = get_current_repo()
     branch = args.target_branch
-    build_plan_file = args.build_plan_file
     optional_deps = args.optional_deps or ""
 
     apply_optional_deps(optional_deps)
+    wait_for_api_limit_reset()
 
-    with open(build_plan_file, "rb") as h:
-        build_plan = h.read().decode()
+    pkgs = get_buildqueue_with_status(full_details=True)
+    update_status(pkgs)
+
+    build_plan = create_build_plan(pkgs, optional_deps)
+    if not build_plan:
+        print("No build jobs to dispatch.")
+        return
 
     clean_assets(dry_run=dry_run)
     show_buildqueue(get_buildqueue_with_status())
 
     workflow = repo.get_workflow("build-jobs.yml")
     with make_writable(workflow):
-        workflow_run = create_dispatch(workflow, branch, inputs={"build-plan": build_plan})
+        workflow_run = create_dispatch(workflow, branch, inputs={"build-plan": json.dumps(build_plan)})
     workflow_run_id = workflow_run.id
 
     def deploy_artifacts(artifacts: list[Artifact]) -> bool:
@@ -136,11 +143,10 @@ def supervise(args: Any) -> None:
 
 def add_parser(subparsers: Any) -> None:
     sub = subparsers.add_parser(
-        "supervise", help="Dispatch and supervise build jobs", allow_abbrev=False)
+        "supervise", help="Plan, dispatch, and supervise build jobs", allow_abbrev=False)
     sub.add_argument(
         "--target-branch", type=str, help="Branch to build in", required=True)
     sub.add_argument("--optional-deps", action="store")
-    sub.add_argument("build_plan_file")
     sub.add_argument(
         "--dry-run", action="store_true", help="Only show what is going to be uploaded")
     sub.set_defaults(func=supervise)

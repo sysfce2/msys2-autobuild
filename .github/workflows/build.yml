@@ -66,20 +66,9 @@ jobs:
         python3 -m pip install -r requirements.txt
         echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
 
-    - name: Check what we should run
-      id: check
+    - name: Plan, dispatch, and supervise build jobs
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         OPTIONAL_DEPS: ${{ github.event.inputs.optional_deps }}
       run: |
-        python -m msys2_autobuild write-build-plan --optional-deps "$OPTIONAL_DEPS" build_plan.json
-        buildPlan="$(cat build_plan.json)"
-        echo "build-plan=$buildPlan" >> $GITHUB_OUTPUT
-
-    - name: Dispatch and supervise build jobs
-      if: steps.check.outputs.build-plan != '[]'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        OPTIONAL_DEPS: ${{ github.event.inputs.optional_deps }}
-      run: |
-        python -m msys2_autobuild supervise --optional-deps "$OPTIONAL_DEPS" --target-branch "build-branch" build_plan.json
+        python -m msys2_autobuild supervise --optional-deps "$OPTIONAL_DEPS" --target-branch "build-branch"
